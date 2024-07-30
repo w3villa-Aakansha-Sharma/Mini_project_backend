@@ -14,6 +14,7 @@ const createTable = () => {
     email_verified_at DATETIME NULL,
     mobile_verified_at DATETIME NULL,
     is_active BOOLEAN DEFAULT TRUE,
+    next_action varchar(50) default null,
     retry_count INT DEFAULT 0,
     comment TEXT NULL,
     user_data JSON NULL,
@@ -21,7 +22,6 @@ const createTable = () => {
     is_mobile_verified boolean default false,
     is_processed boolean default false,
     
-  
     mobile_otp VARCHAR(6) NULL
 );
 

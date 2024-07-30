@@ -6,6 +6,8 @@ const createTable = () => {
     CREATE TABLE IF NOT EXISTS user_table (
       id INT AUTO_INCREMENT PRIMARY KEY,
       username VARCHAR(255),
+      next_action varchar(50) default null,
+      verification_hash varchar(255) NULL,
       email VARCHAR(255) ,
       password VARCHAR(100),
       mobile_number varchar(15)

@@ -1,5 +1,5 @@
-const crypto = require('crypto');
 const db = require('../config/dbConnection');
+const queries = require('../helper/queries');
 
 const verifyEmail = (req, res) => {
     const token = req.query.token;
@@ -10,7 +10,7 @@ const verifyEmail = (req, res) => {
 
     const verificationHash = token;
 
-    db.query(`SELECT * FROM user_verification_table WHERE verification_hash = ?`, [verificationHash], (err, result) => {
+    db.query(queries.getVerificationRecord(verificationHash), [verificationHash], (err, result) => {
         if (err) {
             console.error('Database query error:', err);
             return res.status(500).json({ msg: 'Database query error' });
@@ -27,16 +27,20 @@ const verifyEmail = (req, res) => {
         if (currentTime > new Date(verificationRecord.expire_at)) {
             return res.status(400).json({ msg: 'Email verification time expired' });
         }
+        if(verificationRecord.is_processed == 1){
+            return res.status(203).json({ msg: 'This link is already Clicked.Please Generate new link to further proceed' });
 
+        }
 
-        // Update email verification status and insert user data in a transaction
+        // Begin database transaction
         db.beginTransaction((err) => {
             if (err) {
                 console.error('Database transaction error:', err);
                 return res.status(500).json({ msg: 'Database transaction error' });
             }
 
-            db.query(`UPDATE user_verification_table SET is_email_verified = true, email_verified_at = NOW(), is_processed = TRUE WHERE verification_hash = ?`, [verificationHash], (err, updateResult) => {
+            // Update email verification status
+            db.query(queries.updateVerificationStatus(verificationHash), [verificationHash], (err, updateResult) => {
                 if (err) {
                     return db.rollback(() => {
                         console.error('Database update error:', err);
@@ -44,9 +48,11 @@ const verifyEmail = (req, res) => {
                     });
                 }
 
+                // Insert user data
                 const userData = JSON.parse(verificationRecord.user_data);
-                db.query(`INSERT INTO user_table (username, email, password, mobile_number) VALUES (?, ?, ?, ?)`, 
-                    [userData.username, userData.email, userData.password, userData.mobile_number], 
+                console.log(userData)
+                db.query(queries.insertUser, 
+                    [userData.username, userData.email, userData.password, userData.mobile_number,verificationRecord.verification_hash], 
                     (err) => {
                         if (err) {
                             return db.rollback(() => {
@@ -55,16 +61,30 @@ const verifyEmail = (req, res) => {
                             });
                         }
 
-                        db.commit((err) => {
-                            if (err) {
-                                return db.rollback(() => {
-                                    console.error('Database commit error:', err);
-                                    return res.status(500).json({ msg: 'Database commit error' });
+                        // Update the verification record to set is_processed to 1 and next_action to verify_mobile
+                        db.query(queries.updateVerificationDetails, 
+                            [verificationHash], 
+                            (err) => {
+                                if (err) {
+                                    return db.rollback(() => {
+                                        console.error('Database update error:', err);
+                                        return res.status(500).json({ msg: 'Database update error' });
+                                    });
+                                }
+
+                                // Commit the transaction
+                                db.commit((err) => {
+                                    if (err) {
+                                        return db.rollback(() => {
+                                            console.error('Database commit error:', err);
+                                            return res.status(500).json({ msg: 'Database commit error' });
+                                        });
+                                    }
+
+                                    return res.status(200).json({ msg: 'Email verified and user created successfully' });
                                 });
                             }
-
-                            return res.status(200).json({ msg: 'Email verified and user created successfully' });
-                        });
+                        );
                     }
                 );
             });
