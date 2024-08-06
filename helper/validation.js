@@ -18,7 +18,7 @@ exports.signupValidation = [
     .custom((value, { req }) => value === req.body.password)
     .withMessage('Password and Confirm Password do not match'),
 
-  // Check for mobile number
-  check('mobileNumber', 'Mobile number should be 10 digits').isLength({ min: 10, max: 10 }).isNumeric(),
+ 
+  
 
 ];

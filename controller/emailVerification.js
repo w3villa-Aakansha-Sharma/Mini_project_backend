@@ -52,7 +52,7 @@ const verifyEmail = (req, res) => {
                 const userData = JSON.parse(verificationRecord.user_data);
                 console.log(userData)
                 db.query(queries.insertUser, 
-                    [userData.username, userData.email, userData.password, userData.mobile_number,verificationRecord.verification_hash], 
+                    [userData.username, userData.email, userData.password,verificationRecord.verification_hash], 
                     (err) => {
                         if (err) {
                             return db.rollback(() => {

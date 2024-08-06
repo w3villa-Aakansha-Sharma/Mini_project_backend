@@ -11,6 +11,7 @@ const createTable = () => {
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     verification_hash varchar(255) NULL,
     expire_at DATETIME NULL,
+    otp_expire_at DATETIME NULL,
     email_verified_at DATETIME NULL,
     mobile_verified_at DATETIME NULL,
     is_active BOOLEAN DEFAULT TRUE,
@@ -21,6 +22,7 @@ const createTable = () => {
     is_email_verified boolean default false,
     is_mobile_verified boolean default false,
     is_processed boolean default false,
+    mobile_number varchar(15),
     
     mobile_otp VARCHAR(6) NULL
 );

@@ -15,7 +15,7 @@ const resendCredentials = async (req, res) => {
     }
 
     const email = req.body.email;
-    const mobileNumber = req.body.mobileNumber;
+  
 
     console.log("Checking if user exists for email:", email);
     db.query(queries.checkUsersExists, [email], async (err, result) => {
@@ -35,14 +35,12 @@ const resendCredentials = async (req, res) => {
             const verificationToken = crypto.randomBytes(32).toString('hex');
             const verificationHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
 
-            otplib.authenticator.options = { digits: 6, step: 600 };
-            const secret = otplib.authenticator.generateSecret();
-            const mobileOtp = otplib.authenticator.generate(secret);
+            
 
-            console.log('Generated verification hash and OTP:', verificationHash, mobileOtp);
+            console.log('Generated verification hash ', verificationHash);
 
             // Update verification record
-            db.query(queries.updateVerificationCredentials, [verificationHash, mobileOtp, email], async (err, result) => {
+            db.query(queries.updateVerificationCredentials, [verificationHash, email], async (err, result) => {
                 if (err) {
                     console.error('Database update error:', err);
                     return res.status(500).send({ msg: 'Database update error', error: err });
@@ -57,11 +55,9 @@ const resendCredentials = async (req, res) => {
                     await sendMail(email, mailSubject, content);
                     console.log('Verification email sent to:', email);
 
-                    // Send OTP via SMS
-                    await sendOtp(mobileNumber, mobileOtp);
-                    console.log('OTP sent to mobile number:', mobileNumber);
+                   
 
-                    return res.status(200).send({ msg: 'Credentials resent successfully. Please check your email and mobile for verification.', otp: mobileOtp });
+                    return res.status(200).send({ msg: 'Credentials resent successfully. Please check your email for verification.'});
                 } catch (error) {
                     console.error('Error sending credentials:', error);
                     return res.status(500).send({ msg: 'Failed to send OTP or email', error });

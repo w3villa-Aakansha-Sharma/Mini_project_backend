@@ -10,7 +10,8 @@ const createTable = () => {
       verification_hash varchar(255) NULL,
       email VARCHAR(255) ,
       password VARCHAR(100),
-      mobile_number varchar(15)
+      mobile_number varchar(15),
+      google_id varchar(255) default null
     );
   `;
 

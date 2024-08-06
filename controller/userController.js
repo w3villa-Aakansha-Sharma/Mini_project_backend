@@ -49,9 +49,9 @@ const register = async (req, res) => {
 
                     const query = `
                         INSERT INTO user_verification_table (
-                            unique_reference_id, verification_hash, user_data, expire_at, mobile_otp, email
+                            unique_reference_id, verification_hash, user_data, expire_at, mobile_otp, email,otp_expire_at
                         ) VALUES (
-                            ?, ?, ?, DATE_ADD(NOW(), INTERVAL 50 MINUTE), ?, ?
+                            ?, ?, ?, DATE_ADD(NOW(), INTERVAL 2 MINUTE), ?, ?,DATE_ADD(NOW(), INTERVAL 2 MINUTE)
                         )`;
 
                     db.query(query, [uniqueReferenceId, verificationHash, userData, mobileOtp, req.body.email], async (err, result) => {
@@ -64,15 +64,9 @@ const register = async (req, res) => {
                         const mailSubject = 'Mail Verification';
                         const content = `<p>Please click the link below to verify your email:<br/><a href="http://localhost:3000/verify-email?token=${verificationHash}">Verify</a></p>`;
                         await sendMail(req.body.email, mailSubject, content);
+                        return res.status(201).send({ msg: 'User registered successfully. Please check your email for verification.'});
 
-                        // Send OTP via SMS
-                        try {
-                            await sendOtp(req.body.mobileNumber, mobileOtp);
-                            return res.status(201).send({ msg: 'User registered successfully. Please check your email and mobile for verification.', otp: mobileOtp });
-                        } catch (error) {
-                            console.error('Error sending OTP:', error);
-                            return res.status(500).send({ msg: 'User registered, but failed to send OTP', error });
-                        }
+                      
                     });
                 }
             });
