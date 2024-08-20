@@ -1,11 +1,13 @@
 const db = require('../config/dbConnection');
 const queries = require('../helper/queries');
+const errorResponse=require("../helper/errorResponse.json")
+const successResponse=require("../helper/successResponse.json")
 
 const verifyEmail = (req, res) => {
     const token = req.query.token;
 
     if (!token) {
-        return res.status(400).json({ msg: 'Invalid verification link' });
+        return res.status(400).json({ msg:errorResponse.invalidVerification});
     }
 
     const verificationHash = token;
@@ -13,11 +15,11 @@ const verifyEmail = (req, res) => {
     db.query(queries.getVerificationRecord(verificationHash), [verificationHash], (err, result) => {
         if (err) {
             console.error('Database query error:', err);
-            return res.status(500).json({ msg: 'Database query error' });
+            return res.status(500).json({ msg:errorResponse.databaseErr });
         }
 
         if (!result || !result.length) {
-            return res.status(400).json({ msg: 'Invalid verification link' });
+            return res.status(400).json({ msg:errorResponse.invalidVerification });
         }
 
         const verificationRecord = result[0];
@@ -25,7 +27,7 @@ const verifyEmail = (req, res) => {
 
         // Check if the current time is before the expiration time
         if (currentTime > new Date(verificationRecord.expire_at)) {
-            return res.status(400).json({ msg: 'Email verification time expired' });
+            return res.status(400).json({ msg:errorResponse.timeExpired });
         }
         if(verificationRecord.is_processed == 1){
             return res.status(203).json({ msg: 'This link is already Clicked.Please Generate new link to further proceed' });
@@ -36,7 +38,7 @@ const verifyEmail = (req, res) => {
         db.beginTransaction((err) => {
             if (err) {
                 console.error('Database transaction error:', err);
-                return res.status(500).json({ msg: 'Database transaction error' });
+                return res.status(500).json({ msg:errorResponse.databaseErr });
             }
 
             // Update email verification status
@@ -44,7 +46,7 @@ const verifyEmail = (req, res) => {
                 if (err) {
                     return db.rollback(() => {
                         console.error('Database update error:', err);
-                        return res.status(500).json({ msg: 'Database update error' });
+                        return res.status(500).json({ msg: errorResponse.databaseErr});
                     });
                 }
 
@@ -57,7 +59,7 @@ const verifyEmail = (req, res) => {
                         if (err) {
                             return db.rollback(() => {
                                 console.error('Database insert error:', err);
-                                return res.status(500).json({ msg: 'Database insert error' });
+                                return res.status(500).json({ msg:errorResponse.databaseErr });
                             });
                         }
 
@@ -68,7 +70,7 @@ const verifyEmail = (req, res) => {
                                 if (err) {
                                     return db.rollback(() => {
                                         console.error('Database update error:', err);
-                                        return res.status(500).json({ msg: 'Database update error' });
+                                        return res.status(500).json({ msg:errorResponse.databaseErr });
                                     });
                                 }
 
@@ -77,11 +79,11 @@ const verifyEmail = (req, res) => {
                                     if (err) {
                                         return db.rollback(() => {
                                             console.error('Database commit error:', err);
-                                            return res.status(500).json({ msg: 'Database commit error' });
+                                            return res.status(500).json({ msg:errorResponse.databaseErr });
                                         });
                                     }
 
-                                    return res.status(200).json({ msg: 'Email verified and user created successfully' });
+                                    return res.status(200).json({ msg: successResponse.emailSuccess });
                                 });
                             }
                         );

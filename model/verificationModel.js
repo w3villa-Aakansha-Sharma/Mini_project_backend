@@ -34,12 +34,11 @@ const createTable = () => {
       console.error('Error creating table:', error);
       return;
     }
-    console.log('Table created ');
+    console.log('   Verification Table created ');
   });
 };
 
-// Call the function to ensure table is created
-createTable();
+
 
 // Export the functions
 module.exports = { createTable };

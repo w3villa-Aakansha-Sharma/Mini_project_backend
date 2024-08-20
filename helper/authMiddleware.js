@@ -1,4 +1,3 @@
-// middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
 
 const protect = (req, res, next) => {
@@ -14,10 +13,10 @@ const protect = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // You can attach user info to request object
+    req.user = decoded; // Attach user info to request object
     next();
   } catch (error) {
-    res.status(401).json({ message: 'Not authorized, token failed' });
+    return res.status(401).json({ message: 'Not authorized, token failed' }); // Handle expired or invalid token
   }
 };
 

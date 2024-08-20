@@ -4,7 +4,9 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const otplib = require('otplib');
 const sendOtp = require("../helper/sendOtp");
+const errorResponse=require("../helper/errorResponse.json")
 
+const successResponse=require("../helper/successResponse.json")
 const sendotp = async (req, res) => {
     console.log(req.body);
     const errors = validationResult(req);
@@ -18,11 +20,11 @@ const sendotp = async (req, res) => {
     db.query(`SELECT * FROM user_verification_table WHERE verification_hash = ?`, [token], (err, result) => {
         if (err) {
             console.error('Database query error:', err);
-            return res.status(500).send({ msg: 'Database query error' });
+            return res.status(500).send({ msg:errorResponse.databaseErr });
         }
 
         if (!result || !result.length) {
-            return res.status(400).send({ msg: 'Invalid token' });
+            return res.status(400).send({ msg:errorResponse.invalidCredentials });
         }
 
         const user = result[0];
@@ -44,18 +46,19 @@ const sendotp = async (req, res) => {
             db.query(query, [mobileOtp, mobileNumber, token], async (err, result) => {
                 if (err) {
                     console.error('Database update error:', err);
-                    return res.status(500).send({ msg: 'Database update error' });
+                    return res.status(500).send({ msg:errorResponse.databaseErr });
                 }
 
                 // Send OTP to the mobile number
                 await sendOtp(mobileNumber, mobileOtp);
 
-                return res.status(200).send({ msg: 'OTP sent successfully' });
+                return res.status(200).send({ msg:successResponse.otpsent });
             });
         } else {
-            return res.status(400).send({ msg: 'Email not verified' });
+            return res.status(400).send({ msg: errorResponse.emailnotverified });
         }
     });
 };
+
 
 module.exports = { sendotp };

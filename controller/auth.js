@@ -1,13 +1,16 @@
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const express = require('express');
+const session = require('express-session');
 const passport = require('passport');
-const express = require("express");
-const session = require("express-session");
-const jwt = require("jsonwebtoken");
-const queries = require('../helper/queries'); // Ensure the correct path to queries.js
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const db = require('../config/dbConnection'); // Adjust the path as needed
 
 const app = express();
+
+// Middleware setup
 app.use(session({
-  secret: 'your-secret-key',
+  secret: 'your-secret-key', // Replace with a secure secret key
   resave: false,
   saveUninitialized: true
 }));
@@ -17,41 +20,88 @@ app.use(passport.session());
 
 // Configure Google Strategy
 passport.use(new GoogleStrategy({
-  clientID: process.env.CLIENT_ID,
-  clientSecret: process.env.CLIENT_SECRET,
+  clientID: process.env.CLIENT_ID, // Replace with your Google Client ID
+  clientSecret: process.env.CLIENT_SECRET, // Replace with your Google Client Secret
   callbackURL: 'http://localhost:8000/api/auth/google/callback'
 },
 async (accessToken, refreshToken, profile, done) => {
   try {
     console.log('Google profile:', profile);
 
-    // Check if user exists in the database
-    let user = await queries.getUserByEmail(profile.emails[0].value);
-    if (!user) {
-      // User does not exist, insert new user
-      const newUser = {
-        username: profile.displayName,
-        email: profile.emails[0].value,
-        google_id: profile.id,
-        next_action: 'mobile_verify'
-      };
-      console.log('Inserting new user:', newUser);
-      await queries.insertUser(newUser);
-      console.log('User inserted into the database:', newUser);
-      user = newUser;
-    } else {
-      // User exists, update existing user
-      const updatedUser = {
-        username: profile.displayName,
-        google_id: profile.id,
-        next_action: 'mobile_verify'
-      };
-      console.log('Updating existing user:', updatedUser);
-      await queries.updateUserByEmail(profile.emails[0].value, updatedUser);
-      console.log('User updated in the database:', updatedUser);
-      user = { ...user, ...updatedUser };
-    }
-    return done(null, user);
+    const email = profile.emails[0].value;
+    const username = profile.displayName;
+    const googleId = profile.id;
+    const imageUrl = profile.photos[0]?.value;
+
+    // Generate a new verification hash
+    const verificationHash = crypto.randomBytes(16).toString('hex');
+
+    // Check if user exists in the user_verification_table
+    db.query('SELECT * FROM user_verification_table WHERE email = ?', [email], (err, verificationResults) => {
+      if (err) return done(err);
+
+      let isNewUser = verificationResults.length === 0;
+
+      if (isNewUser) {
+        // User does not exist, insert new user into user_verification_table with next_action = 'mobile_verify'
+        db.query(`
+          INSERT INTO user_verification_table 
+          (unique_reference_id, email, verification_hash, user_data, is_email_verified, next_action) 
+          VALUES (?, ?, ?, ?, 1, 'mobile_verify')`,
+          [crypto.randomBytes(16).toString('hex'), email, verificationHash, JSON.stringify({ username, email })],
+          (err) => {
+            if (err) return done(err);
+            console.log('User inserted into the verification table:', { username, email, verification_hash: verificationHash });
+          }
+        );
+      } else {
+        // User exists, update user_verification_table with new verification_hash
+        db.query(`
+          UPDATE user_verification_table 
+          SET verification_hash = ?, user_data = ?
+          WHERE email = ?`,
+          [verificationHash, JSON.stringify({ username, email }), email],
+          (err) => {
+            if (err) return done(err);
+            console.log('User updated in the verification table:', { username, email, verification_hash: verificationHash });
+          }
+        );
+      }
+
+      // Regardless of whether the user is newly inserted or updated in user_verification_table,
+      // handle insertion/updating in the user table
+      db.query('SELECT * FROM user_table WHERE email = ?', [email], (err, userResults) => {
+        if (err) return done(err);
+
+        if (userResults.length === 0) {
+          // User does not exist in user table, insert new user
+          db.query(`
+            INSERT INTO user_table 
+            (username, email, google_id, verification_hash) 
+            VALUES (?, ?, ?, ?)`,
+            [username, email, googleId, verificationHash],
+            (err) => {
+              if (err) return done(err);
+              console.log('User inserted into the user table:', { username, email, google_id: googleId });
+              return done(null, { username, email, verification_hash: verificationHash, next_action: 'mobile_verify' });
+            }
+          );
+        } else {
+          // User exists in user table, update user information
+          db.query(`
+            UPDATE user_table
+            SET username = ?, google_id = ?
+            WHERE email = ?`,
+            [username, googleId, email],
+            (err) => {
+              if (err) return done(err);
+              console.log('User updated in the user table:', { username, email, google_id: googleId, image_url: imageUrl });
+              return done(null, { ...userResults[0] });
+            }
+          );
+        }
+      });
+    });
   } catch (error) {
     console.error('Error during authentication:', error);
     return done(error);
@@ -64,14 +114,12 @@ passport.serializeUser((user, done) => {
 });
 
 // Deserialize user from the session
-passport.deserializeUser(async (email, done) => {
-  try {
-    const user = await queries.getUserByEmail(email);
-    done(null, user);
-  } catch (err) {
-    console.error('Error during deserialization:', err);
-    done(err);
-  }
+passport.deserializeUser((email, done) => {
+  db.query('SELECT * FROM user_verification_table WHERE email = ?', [email], (err, results) => {
+    if (err) return done(err);
+    done(null, results[0]);
+    console.log("User is", results[0]);
+  });
 });
 
 const generateToken = (user) => {
@@ -81,8 +129,9 @@ const generateToken = (user) => {
 // Export functions to handle routes
 module.exports = {
   authenticate: passport.authenticate('google', { scope: ['profile', 'email'] }),
+  
   callback: (req, res, next) => {
-    passport.authenticate('google', { failureRedirect: '/login' }, (err, user, info) => {
+    passport.authenticate('google', { failureRedirect: '/login' }, (err, user) => {
       if (err) {
         console.error('Error during authentication:', err);
         return next(err);
@@ -97,15 +146,32 @@ module.exports = {
         }
 
         console.log("Authenticated user:", user);
+
+        // Generate JWT token
+        const token = generateToken(user);
+
+        // Determine the next action and handle accordingly
         if (user.next_action === 'mobile_verify') {
-          res.redirect(`http://localhost:3000/verify-otp?token=${user.verification_hash}`);
+          // Redirect to OTP verification page with token in query params
+          return res.redirect(`http://localhost:3000/verify-otp?token=${user.verification_hash}`);
+        }
+
+        if (user.next_action === null) {
+          // Send JWT token to the frontend in the response
+          res.cookie('authToken', token, {
+            secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+            maxAge: 3600000, // 1 hour
+          });
+  
+          // Redirect to the frontend dashboard (or another page)
+          res.redirect(`http://localhost:3000/dashboard?token=${user.verification_hash}`);
         } else {
-          const token = generateToken(user);
-          res.json({ token });
+          return res.redirect('/login');
         }
       });
     })(req, res, next);
   },
+
   dashboard: (req, res) => {
     if (req.isAuthenticated()) {
       res.send(`Welcome ${req.user.username}!`);

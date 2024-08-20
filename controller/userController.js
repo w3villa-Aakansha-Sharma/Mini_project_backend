@@ -5,6 +5,8 @@ const crypto = require("crypto");
 const otplib = require('otplib');
 const sendMail = require("../helper/sendMail");
 const sendOtp = require("../helper/sendOtp");
+const errorResponse=require("../helper/errorResponse.json")
+const successResponse=require("../helper/successResponse.json")
 
 const register = async (req, res) => {
     console.log(req.body);
@@ -18,16 +20,16 @@ const register = async (req, res) => {
     db.query(`SELECT * FROM user_verification_table WHERE LOWER(email) = LOWER(${email});`, (err, result) => {
         if (err) {
             console.error('Database query error:', err);
-            return res.status(500).send({ msg: 'Database query error' });
+            return res.status(500).send({ msg:errorResponse.databaseErr });
         }
 
         if (result && result.length) {
-            return res.status(409).send({ msg: 'The Email already exists' });
+            return res.status(409).send({ msg:errorResponse.emailexist });
         } else {
             bcrypt.hash(req.body.password, 10, async (err, hash) => {
                 if (err) {
                     console.error('Error in generating hash password:', err);
-                    return res.status(500).send({ msg: 'Error in generating Hash Password' });
+                    return res.status(500).send({ msg:errorResponse.hashpassword });
                 } else {
                     // Generate unique reference ID
                     const uniqueReferenceId = crypto.randomBytes(16).toString('hex');
@@ -57,14 +59,14 @@ const register = async (req, res) => {
                     db.query(query, [uniqueReferenceId, verificationHash, userData, mobileOtp, req.body.email], async (err, result) => {
                         if (err) {
                             console.error('Database insert error:', err);
-                            return res.status(500).send({ msg: 'Database insert error', error: err });
+                            return res.status(500).send({ msg:errorResponse.databaseErr, error: err });
                         }
 
                         // Send verification email
                         const mailSubject = 'Mail Verification';
                         const content = `<p>Please click the link below to verify your email:<br/><a href="http://localhost:3000/verify-email?token=${verificationHash}">Verify</a></p>`;
                         await sendMail(req.body.email, mailSubject, content);
-                        return res.status(201).send({ msg: 'User registered successfully. Please check your email for verification.'});
+                        return res.status(201).send({ msg:successResponse.userRegister});
 
                       
                     });

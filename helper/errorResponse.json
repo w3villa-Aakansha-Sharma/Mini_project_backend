@@ -1,0 +1,15 @@
+{
+    "notFoundUser": "User not found.",
+    "databaseErr":"Database  Error",
+    "sendFail":"Fail to send",
+    "invalidVerification":"Invalid Verification Link",
+    "timeExpired":"Verification Time Expired",
+    "invalidCredentials":"invalid Provided Credentials",
+    "incompleteVerification":"Incomplete Verification Process.Please Complete your Verification Process",
+    "otptimeexpired":"Otp Time expired.Please resend OTP",
+    "serverErr":"Server Error",
+    "emailnotverified":"Email Not Verified",
+    "emailexist":"The Email already exists",
+    "hashpassword":"Error in generating Hash Password"
+  }
+  
