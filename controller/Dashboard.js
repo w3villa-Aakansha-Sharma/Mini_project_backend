@@ -1,5 +1,5 @@
-// controllers/profileController.js
-const db = require('../config/dbConnection'); // Adjust the path as needed
+
+const db = require('../config/dbConnection'); 
 const util = require('util');
 
 const query = util.promisify(db.query).bind(db);
@@ -10,13 +10,13 @@ const getProfileImageUrl = async (req, res) => {
   if (!urlToken) return res.status(400).json({ msg: 'No token provided' });
 
   try {
-    // Use promisified query to fetch result from the database
+    
     const result = await query(
       'SELECT profile_image_url FROM user_table WHERE verification_hash = ?',
       [urlToken]
     );
 
-    console.log('Query Result:', result); // Log the result to inspect its structure
+    console.log('Query Result:', result); 
 
     if (Array.isArray(result) && result.length > 0) {
       res.json({ profileImageUrl: result[0].profile_image_url });

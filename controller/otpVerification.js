@@ -63,25 +63,46 @@ const verifyOtp = (req, res) => {
 
                             // Update next_action in `user_table` to null
                             db.query(
-                                `UPDATE user_table SET next_action = NULL WHERE verification_hash = ?`, 
-                                [userId], 
+                                `UPDATE user_table SET next_action = NULL, mobile_number = ? WHERE verification_hash = ?`, 
+                                [verificationRecord.mobile_number, userId], 
                                 (err, userUpdateResult) => {
                                     if (err) {
                                         console.error('Database update error:', err);
                                         return res.status(500).json({ msg: errorResponse.databaseErr });
                                     }
 
-                                    // Generate a JWT token after successful verification
-                                    const userData = JSON.parse(verificationRecord.user_data);
-                                    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key'; // Replace with your secret key
-                                    const token = jwt.sign(
-                                        { name: userData.username, email: userData.email },
-                                        jwtSecret,
-                                        { expiresIn: '1h' }
-                                    );
+                                    // Fetch role from user_verification_table
+                                    db.query(
+                                        `SELECT role FROM user_verification_table WHERE verification_hash = ?`,
+                                        [verificationHash],
+                                        (err, roleResult) => {
+                                            if (err) {
+                                                console.error('Database query error for role:', err);
+                                                return res.status(500).json({ msg: errorResponse.databaseErr });
+                                            }
 
-                                    // Send success response with JWT token
-                                    return res.status(200).json({ msg: successResponse.otpverified, token: token });
+                                            if (!roleResult || roleResult.length === 0) {
+                                                return res.status(500).json({ msg: errorResponse.invalidCredentials });
+                                            }
+
+                                            // Extract the role from the result
+                                            const userRole = roleResult[0].role;
+                                            const userData = JSON.parse(verificationRecord.user_data);
+                                            const jwtSecret = process.env.JWT_SECRET || 'your-secret-key'; // Replace with your secret key
+                                            const token = jwt.sign(
+                                                { 
+                                                    name: userData.username, 
+                                                    email: userData.email,
+                                                    role: userRole // Include role in the token payload
+                                                },
+                                                jwtSecret,
+                                                { expiresIn: '24h' }
+                                            );
+
+                                            // Send success response with JWT token
+                                            return res.status(200).json({ msg: successResponse.otpverified, token: token });
+                                        }
+                                    );
                                 }
                             );
                         }

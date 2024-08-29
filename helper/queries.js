@@ -12,8 +12,8 @@ const queries = {
       WHERE verification_hash = ?;
     `,
     insertUser: `
-      INSERT INTO user_table (username, email, password, next_action, verification_hash) 
-      VALUES (?, ?, ?, 'mobile_verify', ?);
+      INSERT INTO user_table (username, email, password, next_action, verification_hash, unique_reference_id) 
+      VALUES (?, ?, ?, 'mobile_verify', ?,?);
     `,
     updateVerificationDetails: `
       UPDATE user_verification_table

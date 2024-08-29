@@ -3,7 +3,7 @@ const { SMTP_MAIL, SMTP_PASSWORD } = process.env;
 
 const sendMail = async (email, mailSubject, content) => {
   try {
-    // Create a transporter object using SMTP transport
+    
     const transporter = nodemailer.createTransport({
      service:'gmail',
       auth: {
@@ -14,7 +14,7 @@ const sendMail = async (email, mailSubject, content) => {
     console.log(SMTP_MAIL);
     console.log(SMTP_PASSWORD);
 
-    // Define the email options
+    
     const mailOptions = {
       from: SMTP_MAIL,
       to: email,
@@ -22,7 +22,7 @@ const sendMail = async (email, mailSubject, content) => {
       html: content
     };
 
-    // Send the email
+    
     transporter.sendMail(mailOptions, (err, info) => {
       if (err) {
         console.log('Error occurred:', err);

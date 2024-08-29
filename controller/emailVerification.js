@@ -25,7 +25,7 @@ const verifyEmail = (req, res) => {
         const verificationRecord = result[0];
         const currentTime = new Date();
 
-        // Check if the current time is before the expiration time
+        
         if (currentTime > new Date(verificationRecord.expire_at)) {
             return res.status(400).json({ msg:errorResponse.timeExpired });
         }
@@ -34,14 +34,14 @@ const verifyEmail = (req, res) => {
 
         }
 
-        // Begin database transaction
+    
         db.beginTransaction((err) => {
             if (err) {
                 console.error('Database transaction error:', err);
                 return res.status(500).json({ msg:errorResponse.databaseErr });
             }
 
-            // Update email verification status
+    
             db.query(queries.updateVerificationStatus(verificationHash), [verificationHash], (err, updateResult) => {
                 if (err) {
                     return db.rollback(() => {
@@ -50,11 +50,11 @@ const verifyEmail = (req, res) => {
                     });
                 }
 
-                // Insert user data
+                
                 const userData = JSON.parse(verificationRecord.user_data);
                 console.log(userData)
                 db.query(queries.insertUser, 
-                    [userData.username, userData.email, userData.password,verificationRecord.verification_hash], 
+                    [userData.username, userData.email, userData.password,verificationRecord.verification_hash,verificationRecord.unique_reference_id], 
                     (err) => {
                         if (err) {
                             return db.rollback(() => {
@@ -63,7 +63,7 @@ const verifyEmail = (req, res) => {
                             });
                         }
 
-                        // Update the verification record to set is_processed to 1 and next_action to verify_mobile
+                        
                         db.query(queries.updateVerificationDetails, 
                             [verificationHash], 
                             (err) => {
@@ -74,7 +74,7 @@ const verifyEmail = (req, res) => {
                                     });
                                 }
 
-                                // Commit the transaction
+                            
                                 db.commit((err) => {
                                     if (err) {
                                         return db.rollback(() => {

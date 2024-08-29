@@ -5,8 +5,8 @@ const client = twilio(accountSid, authToken);
 
 const sendOtp = async (phoneNumber, otp) => {
     try {
-        // Ensure phone number is in E.164 format
-        const formattedNumber = `+91${phoneNumber}`; // Assuming Indian phone numbers; change this as needed
+        
+        const formattedNumber = `+91${phoneNumber}`; 
 
         const message = await client.messages.create({
             body: `Your OTP code is ${otp}`,

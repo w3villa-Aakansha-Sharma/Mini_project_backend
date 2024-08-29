@@ -4,13 +4,12 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const db = require('../config/dbConnection'); // Adjust the path as needed
+const db = require('../config/dbConnection'); 
 
 const app = express();
 
-// Middleware setup
 app.use(session({
-  secret: 'your-secret-key', // Replace with a secure secret key
+  secret: 'your-secret-key', 
   resave: false,
   saveUninitialized: true
 }));
@@ -18,10 +17,9 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Configure Google Strategy
 passport.use(new GoogleStrategy({
-  clientID: process.env.CLIENT_ID, // Replace with your Google Client ID
-  clientSecret: process.env.CLIENT_SECRET, // Replace with your Google Client Secret
+  clientID: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
   callbackURL: 'http://localhost:8000/api/auth/google/callback'
 },
 async (accessToken, refreshToken, profile, done) => {
@@ -33,17 +31,14 @@ async (accessToken, refreshToken, profile, done) => {
     const googleId = profile.id;
     const imageUrl = profile.photos[0]?.value;
 
-    // Generate a new verification hash
     const verificationHash = crypto.randomBytes(16).toString('hex');
 
-    // Check if user exists in the user_verification_table
     db.query('SELECT * FROM user_verification_table WHERE email = ?', [email], (err, verificationResults) => {
       if (err) return done(err);
 
       let isNewUser = verificationResults.length === 0;
 
       if (isNewUser) {
-        // User does not exist, insert new user into user_verification_table with next_action = 'mobile_verify'
         db.query(`
           INSERT INTO user_verification_table 
           (unique_reference_id, email, verification_hash, user_data, is_email_verified, next_action) 
@@ -55,7 +50,6 @@ async (accessToken, refreshToken, profile, done) => {
           }
         );
       } else {
-        // User exists, update user_verification_table with new verification_hash
         db.query(`
           UPDATE user_verification_table 
           SET verification_hash = ?, user_data = ?
@@ -68,13 +62,10 @@ async (accessToken, refreshToken, profile, done) => {
         );
       }
 
-      // Regardless of whether the user is newly inserted or updated in user_verification_table,
-      // handle insertion/updating in the user table
       db.query('SELECT * FROM user_table WHERE email = ?', [email], (err, userResults) => {
         if (err) return done(err);
 
         if (userResults.length === 0) {
-          // User does not exist in user table, insert new user
           db.query(`
             INSERT INTO user_table 
             (username, email, google_id, verification_hash) 
@@ -87,12 +78,11 @@ async (accessToken, refreshToken, profile, done) => {
             }
           );
         } else {
-          // User exists in user table, update user information
           db.query(`
             UPDATE user_table
-            SET username = ?, google_id = ?
+            SET username = ?, google_id = ?, is_social_signup = ?
             WHERE email = ?`,
-            [username, googleId, email],
+            [username, googleId, true, email],
             (err) => {
               if (err) return done(err);
               console.log('User updated in the user table:', { username, email, google_id: googleId, image_url: imageUrl });
@@ -108,12 +98,10 @@ async (accessToken, refreshToken, profile, done) => {
   }
 }));
 
-// Serialize user for the session
 passport.serializeUser((user, done) => {
-  done(null, user.email); // Use a unique identifier (like email or ID)
+  done(null, user.email); 
 });
 
-// Deserialize user from the session
 passport.deserializeUser((email, done) => {
   db.query('SELECT * FROM user_verification_table WHERE email = ?', [email], (err, results) => {
     if (err) return done(err);
@@ -123,15 +111,28 @@ passport.deserializeUser((email, done) => {
 });
 
 const generateToken = (user) => {
-  return jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  // Fetch the role from the user_verification_table
+  return new Promise((resolve, reject) => {
+    db.query('SELECT role FROM user_verification_table WHERE email = ?', [user.email], (err, roleResult) => {
+      if (err) return reject(err);
+      if (!roleResult.length) return reject(new Error('Role not found'));
+      
+      const userRole = roleResult[0].role;
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: userRole },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      resolve(token);
+    });
+  });
 };
 
-// Export functions to handle routes
 module.exports = {
   authenticate: passport.authenticate('google', { scope: ['profile', 'email'] }),
-  
+
   callback: (req, res, next) => {
-    passport.authenticate('google', { failureRedirect: '/login' }, (err, user) => {
+    passport.authenticate('google', { failureRedirect: '/login' }, async (err, user) => {
       if (err) {
         console.error('Error during authentication:', err);
         return next(err);
@@ -139,33 +140,33 @@ module.exports = {
       if (!user) {
         return res.redirect('/login');
       }
-      req.logIn(user, (loginErr) => {
+      req.logIn(user, async (loginErr) => {
         if (loginErr) {
           console.error('Login error:', loginErr);
           return next(loginErr);
         }
 
         console.log("Authenticated user:", user);
+        try {
+          const token = await generateToken(user);
 
-        // Generate JWT token
-        const token = generateToken(user);
+          if (user.next_action === 'mobile_verify') {
+            return res.redirect(`http://localhost:3000/verify-otp?token=${user.verification_hash}`);
+          }
 
-        // Determine the next action and handle accordingly
-        if (user.next_action === 'mobile_verify') {
-          // Redirect to OTP verification page with token in query params
-          return res.redirect(`http://localhost:3000/verify-otp?token=${user.verification_hash}`);
-        }
+          if (user.next_action === null) {
+            res.cookie('authToken', token, {
+              secure: process.env.NODE_ENV === 'production',
+              httpOnly: true, // Ensure the cookie is only accessible via HTTP(S)
+              maxAge: 3600000, // 1 hour
+            });
 
-        if (user.next_action === null) {
-          // Send JWT token to the frontend in the response
-          res.cookie('authToken', token, {
-            secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-            maxAge: 3600000, // 1 hour
-          });
-  
-          // Redirect to the frontend dashboard (or another page)
-          res.redirect(`http://localhost:3000/dashboard?token=${user.verification_hash}`);
-        } else {
+            res.redirect(`http://localhost:3000/dashboard?token=${user.verification_hash}`);
+          } else {
+            return res.redirect('/login');
+          }
+        } catch (error) {
+          console.error('Error generating token:', error);
           return res.redirect('/login');
         }
       });

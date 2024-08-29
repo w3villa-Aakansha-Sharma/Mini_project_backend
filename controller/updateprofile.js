@@ -1,25 +1,28 @@
 const db = require('../config/dbConnection');
-const path = require('path');
-const fs = require('fs');
 
 const updateProfile = async (req, res) => {
-    console.log(req.body)
-    const { username, address, profilePicture } = req.body;
+    console.log(req.body);
+    const { username, address, profilePicture, location } = req.body;
     const token = req.body.token;
+
+    // Extract latitude and longitude from the location object
+    const latitude = location ? location.lat : null;
+    const longitude = location ? location.lng : null;
+
     console.log(token);
     console.log(username);
     console.log(address);
     console.log(profilePicture);
+    console.log(location);
 
- 
-    // Example query to update user information
+    // Update query with latitude and longitude
     const query = `
         UPDATE user_table
-        SET username = ?, address = ?, profile_image_url = ?
+        SET username = ?, address = ?, profile_image_url = ?, latitude = ?, longitude = ?
         WHERE verification_hash = ?;
     `;
-console.log(query);
-    db.query(query, [username, address, profilePicture, token], (err, result) => {
+
+    db.query(query, [username, address, profilePicture, latitude, longitude, token], (err, result) => {
         if (err) {
             console.error('Error updating user:', err);
             return res.status(500).json({ message: 'Failed to update user' });
@@ -30,6 +33,7 @@ console.log(query);
         }
 
         res.status(200).json({ message: 'User updated successfully' });
-    });};
+    });
+};
 
 module.exports = { updateProfile };

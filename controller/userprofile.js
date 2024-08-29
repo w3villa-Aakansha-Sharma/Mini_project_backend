@@ -1,17 +1,17 @@
-const db = require('../config/dbConnection'); // Your MySQL database configuration
+const db = require('../config/dbConnection');
 
-// Function to get user profile
+
 const getUserProfile = (req, res) => {
     console.log("this is coming in request",req.body.token);
   const userId = req.body.token;
   console.log(userId)
 
-  // Debugging: Log the input
+  
   console.log('User token received:', userId);
 
-  const query = 'SELECT username, address, profile_image_url FROM user_table WHERE verification_hash = ?';
+  const query = 'SELECT * FROM user_table WHERE verification_hash = ?';
 
-  // Debugging: Log the query being executed
+  
   console.log('Executing query:', query, 'with parameters:', [userId]);
 
   db.query(query, [userId], (error, results) => {
@@ -20,7 +20,7 @@ const getUserProfile = (req, res) => {
       return res.status(500).json({ message: 'Internal server error' });
     }
 
-    // Debugging: Log the results of the query
+    
     console.log('Query results:', results);
 
     if (results.length === 0) {

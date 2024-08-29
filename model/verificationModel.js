@@ -1,11 +1,11 @@
 const conn = require('../config/dbConnection');
 
-// Function to create table
+
 const createTable = () => {
   const createTableQuery = `
     CREATE TABLE  if not exists user_verification_table (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    unique_reference_id VARCHAR(255) UNIQUE NOT NULL,
+    unique_reference_id VARCHAR(255) UNIQUE NOT NULL ,
     email varchar(500) unique,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -15,7 +15,7 @@ const createTable = () => {
     email_verified_at DATETIME NULL,
     mobile_verified_at DATETIME NULL,
     is_active BOOLEAN DEFAULT TRUE,
-    next_action varchar(50) default null,
+    next_action varchar(50) default 'email_verify',
     retry_count INT DEFAULT 0,
     comment TEXT NULL,
     user_data JSON NULL,
@@ -24,7 +24,8 @@ const createTable = () => {
     is_processed boolean default false,
     mobile_number varchar(15),
     
-    mobile_otp VARCHAR(6) NULL
+    mobile_otp VARCHAR(6) NULL,
+    role varchar(15) default 'user'
 );
 
   `;
@@ -40,5 +41,5 @@ const createTable = () => {
 
 
 
-// Export the functions
+
 module.exports = { createTable };

@@ -10,6 +10,8 @@
     "serverErr":"Server Error",
     "emailnotverified":"Email Not Verified",
     "emailexist":"The Email already exists",
-    "hashpassword":"Error in generating Hash Password"
+    "hashpassword":"Error in generating Hash Password",
+    "emailPendingVerification": "Please check your email to verify your account as this email already exists."
+  
   }
   

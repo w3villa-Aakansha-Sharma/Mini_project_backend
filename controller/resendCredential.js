@@ -30,13 +30,14 @@ const resendCredentials = async (req, res) => {
         } else {
             console.log('User found:', result[0]);
 
-            // Generate new verification hash
+            
             const verificationToken = crypto.randomBytes(32).toString('hex');
             const verificationHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
 
+
             console.log('Generated verification hash ', verificationHash);
 
-            // Update verification record
+            
             db.query(queries.updateVerificationCredentials, [verificationHash, email], async (err, result) => {
                 if (err) {
                     console.error('Database update error:', err);
@@ -45,7 +46,7 @@ const resendCredentials = async (req, res) => {
 
                 console.log('Verification record updated successfully:', result);
 
-                // Send verification email
+                
                 const mailSubject = 'New Verification Credentials';
                 const content = `<p>Your new verification link is: <br/><a href="http://localhost:3000/verify-email?token=${verificationHash}">Verify</a></p>`;
                 try {

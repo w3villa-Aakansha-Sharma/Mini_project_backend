@@ -5,6 +5,8 @@
     "otpverified":"OTP Verified Successfully",
     "otpSent":"New Otp sent successfully",
     "otpsent":"Otp sent successfully",
-    "userRegister":"User Register Successfully.Please check your registered email for verification link"
+    "userRegister":"User Register Successfully.Please check your registered email for verification link",
+    "needotpverify":"This email already exist but need otp to be verified",
+    "emailRegister":"Please verify your account !!! clicking on link sent on registered mail"
   }
   
